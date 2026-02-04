@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    color-scheme: light;
+}
+
+body {
+    margin: 0;
+    background: theme(colors.cream);
+    color: theme(colors.slate);
+}
