@@ -359,7 +359,7 @@ These decisions are **final for v1** and should not be changed unless requiremen
 
 
 ## Definition
-GET https://newsapi.org/v2/everything?q=bitcoin&apiKey=eaba4e25ca064f5a94f41ea8fa2e529d
+GET https://newsapi.org/v2/everything?q=bitcoin&apiKey=YOUR_API_KEY
 
 ## Example Response 
 {

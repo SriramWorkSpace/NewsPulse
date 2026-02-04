@@ -59,8 +59,8 @@ Tailwind CSS 3.4.13
 
 ### Polling Settings (backend/.env)
 ```env
-NEWS_API_KEY=eaba4e25ca064f5a94f41ea8fa2e529d
-GEMINI_API_KEY=AIzaSyB9EV8aRCQJzazM5onKLJ3DCk0Msq0SnnU
+NEWS_API_KEY=your_newsapi_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ### Default Parameters
