@@ -1,14 +1,8 @@
 from __future__ import annotations
-import os
-import sys
+
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-# Debug: Print environment check on import
-print("=== CONFIG DEBUG ===", file=sys.stderr, flush=True)
-print(f"NEWS_API_KEY set: {'NEWS_API_KEY' in os.environ}", file=sys.stderr, flush=True)
-print(f"GEMINI_API_KEY set: {'GEMINI_API_KEY' in os.environ}", file=sys.stderr, flush=True)
 
 # Get the backend directory (one level up from this file)
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
