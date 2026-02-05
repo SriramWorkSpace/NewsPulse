@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Allow production env (no secrets, just backend URL)
+!frontend/.env.production
+
 # Python
 __pycache__/
 *.py[cod]
