@@ -89,13 +89,14 @@ async def get_related_articles(article_index: int, top_k: int = 5):
 
 
 @router.get("/related-by-url")
-async def get_related_articles_by_url(url: str, top_k: int = 3):
+async def get_related_articles_by_url(url: str, top_k: int = 3, title: str = None):
     """
-    Get articles related to a specific article by URL.
+    Get articles related to a specific article by URL or title.
 
     Args:
         url: URL of the article to find relatives for
         top_k: Number of related articles to return
+        title: Article title (fallback if URL not found)
 
     Returns:
         List of related articles with similarity scores
@@ -113,10 +114,45 @@ async def get_related_articles_by_url(url: str, top_k: int = 3):
             article_index = idx
             break
 
+    # If not found by URL and title provided, try semantic search
+    if article_index is None and title:
+        clusterer = get_article_clusterer()
+        # Create embedding for the provided title
+        title_embedding = clusterer.get_embeddings([title])
+        
+        if len(title_embedding) > 0:
+            # Get embeddings for all articles
+            article_texts = [
+                f"{a.get('title', '')} {a.get('description', '')}" 
+                for a in articles
+            ]
+            article_embeddings = clusterer.get_embeddings(article_texts)
+            
+            # Find most similar articles
+            from sklearn.metrics.pairwise import cosine_similarity
+            similarities = cosine_similarity(title_embedding, article_embeddings)[0]
+            
+            # Get top_k most similar (excluding threshold for broader matches)
+            similar_indices = similarities.argsort()[-top_k:][::-1]
+            
+            results = []
+            for idx in similar_indices:
+                if similarities[idx] > 0.2:  # Lower threshold for cross-dataset matching
+                    article = articles[idx]
+                    results.append({
+                        "similarity": float(similarities[idx]),
+                        "title": article.get("title"),
+                        "url": article.get("url"),
+                        "source": article.get("source_name"),
+                        "published_at": article.get("published_at"),
+                    })
+            
+            return {"related": results}
+    
     if article_index is None:
         return {"related": []}
 
-    # Find related articles
+    # Find related articles using existing method
     clusterer = get_article_clusterer()
     related = clusterer.find_related_articles(
         article_index, articles, top_k=top_k, threshold=0.4
@@ -183,13 +219,13 @@ async def get_article_clusters():
 
 
 @router.get("/topics")
-async def get_discovered_topics(lookback_hours: int = 24, min_articles: int = 15):
+async def get_discovered_topics(lookback_hours: int = 24, min_articles: int = 3):
     """
     Get automatically discovered topics from recent articles using BERTopic.
 
     Args:
         lookback_hours: Hours to look back for articles (default 24)
-        min_articles: Minimum articles needed for topic discovery (default 15)
+        min_articles: Minimum articles needed for topic discovery (default 3)
 
     Returns:
         Dictionary with discovered topics, keywords, and sample articles

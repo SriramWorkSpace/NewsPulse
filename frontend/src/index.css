@@ -11,3 +11,151 @@ body {
     background: theme(colors.cream);
     color: theme(colors.slate);
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+/* Scroll reveal animation */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: revealOnScroll 0.6s ease-out forwards;
+}
+
+@keyframes revealOnScroll {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.scroll-reveal-delay-1 {
+    animation-delay: 0.1s;
+}
+
+.scroll-reveal-delay-2 {
+    animation-delay: 0.2s;
+}
+
+/* Newton's Cradle Loading Animation */
+.newtons-cradle {
+    --uib-size: 50px;
+    --uib-speed: 1.2s;
+    --uib-color: #474554;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--uib-size);
+    height: var(--uib-size);
+}
+
+.newtons-cradle__dot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: 25%;
+    transform-origin: center top;
+}
+
+.newtons-cradle__dot::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 25%;
+    border-radius: 50%;
+    background-color: var(--uib-color);
+}
+
+.newtons-cradle__dot:first-child {
+    animation: swing var(--uib-speed) linear infinite;
+}
+
+.newtons-cradle__dot:last-child {
+    animation: swing2 var(--uib-speed) linear infinite;
+}
+
+@keyframes swing {
+    0% {
+        transform: rotate(0deg);
+        animation-timing-function: ease-out;
+    }
+
+    25% {
+        transform: rotate(70deg);
+        animation-timing-function: ease-in;
+    }
+
+    50% {
+        transform: rotate(0deg);
+        animation-timing-function: linear;
+    }
+}
+
+@keyframes swing2 {
+    0% {
+        transform: rotate(0deg);
+        animation-timing-function: linear;
+    }
+
+    50% {
+        transform: rotate(0deg);
+        animation-timing-function: ease-out;
+    }
+
+    75% {
+        transform: rotate(-70deg);
+        animation-timing-function: ease-in;
+    }
+}
+
+/* Custom Button Styles - Neumorphic Design */
+.custom-btn {
+    background-color: #e0e0e0;
+    border-radius: 70px;
+    box-shadow: inset 4px 4px 10px #bcbcbc, inset -4px -4px 10px #ffffff;
+    color: #4d4d4d;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 6px 20px;
+    transition: all 0.2s ease-in-out;
+    border: 2px solid rgb(206, 206, 206);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.custom-btn:hover:not(:disabled) {
+    box-shadow: inset 2px 2px 5px #bcbcbc, inset -2px -2px 5px #ffffff, 2px 2px 5px #bcbcbc, -2px -2px 5px #ffffff;
+}
+
+.custom-btn:focus {
+    outline: none;
+    box-shadow: inset 2px 2px 5px #bcbcbc, inset -2px -2px 5px #ffffff, 2px 2px 5px #bcbcbc, -2px -2px 5px #ffffff;
+}
+
+.custom-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.custom-btn-secondary {
+    background-color: #f5d5d5;
+    border: 2px solid rgb(220, 180, 180);
+}
+
+.custom-btn-secondary:hover:not(:disabled) {
+    box-shadow: inset 2px 2px 5px #d4a4a4, inset -2px -2px 5px #ffffff, 2px 2px 5px #d4a4a4, -2px -2px 5px #ffffff;
+}

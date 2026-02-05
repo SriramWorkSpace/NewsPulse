@@ -123,13 +123,13 @@ export default function Search({ initialQuery = '' }) {
     const getSentimentColor = useCallback((label) => {
         switch (label?.toLowerCase()) {
             case 'positive':
-                return 'bg-sageGreen/20 text-sageGreen border-sageGreen/30';
+                return 'bg-green-500 text-white border-green-600';
             case 'negative':
-                return 'bg-mutedRose/20 text-mutedRose border-mutedRose/30';
+                return 'bg-red-500 text-white border-red-600';
             case 'neutral':
-                return 'bg-mutedBrown/10 text-mutedBrown border-mutedBrown/20';
+                return 'bg-gray-600 text-white border-gray-700';
             default:
-                return 'bg-mutedBrown/5 text-mutedBrown/50 border-mutedBrown/10';
+                return 'bg-mutedBrown/20 text-charcoal border-mutedBrown/30';
         }
     }, []);
 
@@ -185,7 +185,7 @@ export default function Search({ initialQuery = '' }) {
 
             {/* Results Meta */}
             {meta && (
-                <div className="max-w-3xl mx-auto text-sm text-mutedBrown/70 font-medium">
+                <div className="max-w-3xl mx-auto text-sm text-charcoal/80 font-medium">
                     Found <span className="text-sageGreen font-bold">{meta.totalResults.toLocaleString()}</span> results for "{meta.q}"
                     {totalPages > 1 && <span className="ml-2">• Page {currentPage} of {totalPages}</span>}
                 </div>
@@ -197,7 +197,7 @@ export default function Search({ initialQuery = '' }) {
                     <div className="flex items-center justify-center w-20 h-20 bg-white/90 border border-white/60 rounded-full mx-auto mb-6 shadow-sm">
                         <SearchIcon className="w-10 h-10 text-mutedBrown/40" />
                     </div>
-                    <p className="text-mutedBrown/70 text-lg">
+                    <p className="text-charcoal/70 text-lg font-medium">
                         {query ? 'No results found. Try a different search term.' : 'Enter a search term to find news articles.'}
                     </p>
                 </div>
@@ -229,15 +229,23 @@ export default function Search({ initialQuery = '' }) {
                                         </div>
                                     </div>
                                 )}
+                                {/* Confidence Score */}
+                                {article.sentiment?.score && (
+                                    <div className="absolute bottom-3 left-3">
+                                        <div className="bg-charcoal/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-white shadow-md">
+                                            {(article.sentiment.score * 100).toFixed(0)}% Confidence
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         <div className="p-5">
                             <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs font-semibold text-mutedRose uppercase tracking-wide">{article.source?.name || 'Unknown Source'}</span>
-                                <span className="text-xs text-mutedBrown/60">{new Date(article.publishedAt).toLocaleDateString()}</span>
+                                <span className="text-xs font-bold text-mutedRose uppercase tracking-wide">{article.source?.name || 'Unknown Source'}</span>
+                                <span className="text-xs text-charcoal/60 font-medium">{new Date(article.publishedAt).toLocaleDateString()}</span>
                             </div>
 
-                            <h3 className="font-bold text-charcoal mb-2 line-clamp-2 group-hover:text-sageGreen transition-colors">
+                            <h3 className="font-bold text-charcoal mb-2 line-clamp-2 group-hover:text-sageGreen transition-colors text-base">
                                 <a
                                     href={article.url}
                                     target="_blank"
@@ -248,7 +256,7 @@ export default function Search({ initialQuery = '' }) {
                             </h3>
 
                             {article.description && (
-                                <p className="text-sm text-mutedBrown/70 line-clamp-3 mb-4">
+                                <p className="text-sm text-charcoal/80 line-clamp-3 mb-4 leading-relaxed">
                                     {article.description}
                                 </p>
                             )}
@@ -260,36 +268,32 @@ export default function Search({ initialQuery = '' }) {
                                         href={article.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-sm font-medium text-sageGreen hover:text-sageGreen/80 flex items-center"
+                                        className="text-sm font-bold text-charcoal hover:text-sageGreen flex items-center gap-1 transition-colors"
                                     >
-                                        Read more <ArrowRightIcon className="ml-1 w-3 h-3" />
+                                        <span>Read more</span>
+                                        <ArrowRightIcon className="w-3.5 h-3.5" />
                                     </a>
-                                    {article.sentiment?.score && (
-                                        <span className="text-xs text-mutedBrown/50">
-                                            ML Confidence: {(article.sentiment.score * 100).toFixed(0)}%
-                                        </span>
-                                    )}
                                 </div>
 
                                 {/* AI Summarize Button */}
                                 <button
                                     onClick={() => handleSummarize(article, idx)}
                                     disabled={summarizing[idx]}
-                                    className="w-full px-3 py-2 bg-sageGreen/30 border border-sageGreen/40 text-charcoal rounded-lg hover:bg-sageGreen/40 disabled:opacity-50 transition-all text-sm font-medium flex items-center justify-center space-x-2"
+                                    className="custom-btn w-full flex items-center justify-center gap-2"
                                 >
-                                    <SparklesIcon className="w-4 h-4" />
-                                    <span>{summarizing[idx] ? 'Summarizing...' : 'AI Summarize'}</span>
+                                    <SparklesIcon className="w-2.5 h-2.5" />
+                                    <span className="text-[10px]">{summarizing[idx] ? 'Summarizing...' : 'AI Summarize'}</span>
                                 </button>
 
                                 {/* Related Stories Button */}
                                 <button
                                     onClick={() => handleShowRelated(idx)}
-                                    className="w-full px-3 py-2 bg-mutedRose/30 border border-mutedRose/40 text-charcoal rounded-lg hover:bg-mutedRose/40 transition-all text-sm font-medium flex items-center justify-center space-x-2"
+                                    className="custom-btn custom-btn-secondary w-full flex items-center justify-center gap-2"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
-                                    <span>{showingRelated[idx] ? 'Hide Related' : 'Related Stories'}</span>
+                                    <span className="text-[10px]">{showingRelated[idx] ? 'Hide Related' : 'Related Stories'}</span>
                                 </button>
 
                                 {/* Summary Display */}
@@ -297,7 +301,7 @@ export default function Search({ initialQuery = '' }) {
                                     <div className="mt-3 p-3 bg-sageGreen/10 border border-sageGreen/30 rounded-lg">
                                         <div className="flex items-start space-x-2 mb-2">
                                             <SparklesIcon className="w-4 h-4 text-sageGreen mt-0.5 flex-shrink-0" />
-                                            <span className="text-xs font-semibold text-charcoal">AI Summary</span>
+                                            <span className="text-xs font-bold text-charcoal">AI Summary</span>
                                         </div>
                                         <p className="text-sm text-charcoal leading-relaxed">{summaries[idx]}</p>
                                     </div>

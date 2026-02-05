@@ -1,11 +1,21 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Search from './components/Search'
+import Topics from './components/Topics'
+import BreakingNews from './components/BreakingNews'
+import LoadingScreen from './components/LoadingScreen'
 import TrendingIcon from './components/icons/TrendingIcon'
 import SparklesIcon from './components/icons/SparklesIcon'
 import ArrowUpIcon from './components/icons/ArrowUpIcon'
 import ArrowDownIcon from './components/icons/ArrowDownIcon'
 import ArrowRightIcon from './components/icons/ArrowRightIcon'
 import SearchIcon from './components/icons/SearchIcon'
+import GitHubIcon from './components/icons/GitHubIcon'
+import LinkedInIcon from './components/icons/LinkedInIcon'
+import HeartIcon from './components/icons/HeartIcon'
+import PulseIcon from './components/icons/PulseIcon'
+import PersonIcon from './components/icons/PersonIcon'
+import BuildingIcon from './components/icons/BuildingIcon'
+import LocationIcon from './components/icons/LocationIcon'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -14,6 +24,7 @@ export default function App() {
     const [trends, setTrends] = useState([])
     const [entities, setEntities] = useState({})
     const [featuredArticles, setFeaturedArticles] = useState([])
+    const [displayedArticlesCount, setDisplayedArticlesCount] = useState(6)
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [summarizing, setSummarizing] = useState({})
@@ -39,7 +50,7 @@ export default function App() {
             .catch(err => console.error('Entities error:', err))
 
         // Fetch featured articles (latest tech news with sentiment)
-        fetch(`${API_BASE}/search?q=technology&pageSize=6`)
+        fetch(`${API_BASE}/search?q=technology&pageSize=12`)
             .then(res => res.json())
             .then(data => {
                 setFeaturedArticles(data.articles || [])
@@ -60,10 +71,10 @@ export default function App() {
 
     const getSentimentColor = useCallback((label) => {
         switch (label?.toLowerCase()) {
-            case 'positive': return 'bg-sageGreen/20 text-sageGreen border-sageGreen/30'
-            case 'negative': return 'bg-mutedRose/20 text-mutedRose border-mutedRose/30'
-            case 'neutral': return 'bg-mutedBrown/10 text-mutedBrown border-mutedBrown/20'
-            default: return 'bg-mutedBrown/5 text-mutedBrown/50 border-mutedBrown/10'
+            case 'positive': return 'bg-green-500 text-white border-green-600'
+            case 'negative': return 'bg-red-500 text-white border-red-600'
+            case 'neutral': return 'bg-gray-600 text-white border-gray-700'
+            default: return 'bg-mutedBrown/20 text-charcoal border-mutedBrown/30'
         }
     }, [])
 
@@ -107,7 +118,10 @@ export default function App() {
         }
     }, [])
 
-    const handleShowRelated = useCallback(async (articleUrl) => {
+    const handleShowRelated = useCallback(async (article) => {
+        const articleUrl = typeof article === 'string' ? article : article.url
+        const articleTitle = typeof article === 'object' ? article.title : ''
+
         console.log('[Related] Toggling for URL:', articleUrl)
 
         // Toggle visibility
@@ -124,10 +138,10 @@ export default function App() {
             return
         }
 
-        // Fetch related articles
+        // Fetch related articles with title fallback
         console.log('[Related] Fetching related articles...')
         try {
-            const url = `${API_BASE}/related-by-url?url=${encodeURIComponent(articleUrl)}&top_k=3`
+            const url = `${API_BASE}/related-by-url?url=${encodeURIComponent(articleUrl)}&title=${encodeURIComponent(articleTitle)}&top_k=3`
             console.log('[Related] Fetching from:', url)
 
             const response = await fetch(url)
@@ -151,16 +165,29 @@ export default function App() {
         }
     }, [relatedArticles, showingRelated])
 
+    const handleLoadMore = useCallback(() => {
+        setDisplayedArticlesCount(prev => Math.min(prev + 6, featuredArticles.length))
+    }, [featuredArticles.length])
+
+    // Show loading screen while initial data is loading
+    if (loading) {
+        return <LoadingScreen />
+    }
+
     return (
         <div className="min-h-screen bg-warmBeige">
+            {/* Breaking News Banner */}
+            <BreakingNews apiBase={API_BASE} />
+
             {/* Glass Morphism Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-xl bg-charcoal/80 border-b border-white/10">
+            <header className="sticky top-0 z-40 backdrop-blur-xl bg-charcoal/80 border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-20">
-                        <div className="flex items-center space-x-8">
-                            <button onClick={() => setActiveView('home')} className="flex items-center group">
-                                <span className="text-2xl font-bold tracking-tight text-warmBeige">NewsPulse</span>
-                                <span className="ml-2 text-xs bg-sageGreen/40 text-warmBeige px-2 py-1 rounded border border-sageGreen/50 shadow-sm">AI</span>
+                    <div className="flex items-center justify-center h-20 relative">
+                        {/* Left: Logo */}
+                        <div className="absolute left-0 flex items-center space-x-8">
+                            <button onClick={() => setActiveView('home')} className="flex items-center gap-2 group">
+                                <span className="text-2xl font-bold tracking-tight text-warmBeige">News<span className="text-mutedRose">Pulse</span></span>
+                                <PulseIcon className="w-5 h-5 text-mutedRose" />
                             </button>
                             <nav className="hidden md:flex space-x-6 text-sm">
                                 <button onClick={() => setActiveView('home')} className={`transition-colors ${activeView === 'home' ? 'text-warmBeige' : 'text-warmBeige/50 hover:text-warmBeige/80'}`}>Home</button>
@@ -168,7 +195,7 @@ export default function App() {
                             </nav>
                         </div>
 
-                        {/* Glass Search Bar */}
+                        {/* Center: Search Bar */}
                         <form onSubmit={handleSearchSubmit} className="hidden lg:block">
                             <div className="relative">
                                 <input
@@ -188,7 +215,8 @@ export default function App() {
                             </div>
                         </form>
 
-                        <div className="flex items-center space-x-4 text-xs text-warmBeige/50">
+                        {/* Right: Status */}
+                        <div className="absolute right-0 flex items-center space-x-4 text-xs text-warmBeige/50">
                             <span className="hidden sm:inline">Real-time ML</span>
                             <span className="w-2 h-2 bg-sageGreen rounded-full animate-pulse"></span>
                         </div>
@@ -224,15 +252,15 @@ export default function App() {
                                                     setSearchQuery(t.keyword);
                                                     setActiveView('search');
                                                 }}
-                                                className="bg-white/75 border border-white/60 rounded-lg p-3 hover:bg-white/85 hover:border-sageGreen/50 hover:shadow-md transition-all cursor-pointer group will-change-transform"
+                                                className="bg-white/90 border border-white/60 rounded-xl p-3 hover:bg-white hover:border-sageGreen/40 hover:shadow-md transition-all cursor-pointer group"
                                             >
                                                 <div className="flex items-start justify-between mb-1">
                                                     <span className="text-lg font-bold text-mutedBrown/30 group-hover:text-sageGreen/60 transition-colors">#{i + 1}</span>
                                                     {t.isNew && <span className="bg-mutedRose/20 text-mutedRose text-xs px-1.5 py-0.5 rounded-full font-medium border border-mutedRose/30">NEW</span>}
                                                 </div>
-                                                <h3 className="font-semibold text-charcoal text-xs mb-1 line-clamp-2">{t.keyword}</h3>
+                                                <h3 className="font-bold text-charcoal text-sm mb-1 line-clamp-2">{t.keyword}</h3>
                                                 <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-mutedBrown/60">{t.currentCount}</span>
+                                                    <span className="text-charcoal/70 font-medium">{t.currentCount}</span>
                                                     {t.growth !== null && (
                                                         <span className={`font-medium flex items-center space-x-1 ${t.growth > 0 ? 'text-sageGreen' : 'text-mutedRose'}`}>
                                                             {t.growth > 0 ? <ArrowUpIcon className="w-2.5 h-2.5" /> : <ArrowDownIcon className="w-2.5 h-2.5" />}
@@ -270,113 +298,134 @@ export default function App() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {featuredArticles.map((article, i) => (
-                                        <article key={article.url || i} className="bg-white/80 border border-white/70 rounded-2xl overflow-hidden hover:bg-white/90 hover:border-sageGreen/50 hover:shadow-lg transition-all will-change-transform group">
-                                            {article.urlToImage && (
-                                                <div className="relative h-48 overflow-hidden bg-taupe">
-                                                    <img
-                                                        src={article.urlToImage}
-                                                        alt={article.title}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 will-change-transform"
-                                                        loading="lazy"
-                                                        onError={(e) => e.target.parentElement.style.display = 'none'}
-                                                    />
-                                                    {/* ML Sentiment Badge */}
-                                                    <div className="absolute top-3 right-3">
-                                                        <div className={`${getSentimentColor(article.sentiment?.label)} px-3 py-1 rounded-full text-xs font-bold flex items-center border shadow-md`}>
-                                                            {getSentimentIcon(article.sentiment?.label)}
-                                                            <span className="ml-1">{article.sentiment?.label || 'analyzing'}</span>
+                                <>
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                        {featuredArticles.slice(0, displayedArticlesCount).map((article, i) => (
+                                            <article key={article.url || i} className="bg-white/95 border border-white/70 rounded-2xl overflow-hidden hover:border-sageGreen/40 shadow-lg hover:shadow-xl transition-shadow group">
+                                                {article.urlToImage && (
+                                                    <div className="relative h-48 overflow-hidden bg-taupe">
+                                                        <img
+                                                            src={article.urlToImage}
+                                                            alt={article.title}
+                                                            className="w-full h-full object-cover"
+                                                            loading="lazy"
+                                                            onError={(e) => e.target.parentElement.style.display = 'none'}
+                                                        />
+                                                        {/* ML Sentiment Badge */}
+                                                        <div className="absolute top-3 right-3">
+                                                            <div className={`${getSentimentColor(article.sentiment?.label)} px-3 py-1 rounded-full text-xs font-bold flex items-center border shadow-md`}>
+                                                                {getSentimentIcon(article.sentiment?.label)}
+                                                                <span className="ml-1">{article.sentiment?.label || 'analyzing'}</span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="p-5">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <span className="text-xs font-semibold text-mutedRose uppercase tracking-wide">{article.source?.name || 'News'}</span>
-                                                    <span className="text-xs text-mutedBrown/60">{new Date(article.publishedAt).toLocaleDateString()}</span>
-                                                </div>
-                                                <h3 className="font-bold text-charcoal mb-2 line-clamp-2 group-hover:text-sageGreen transition-colors">
-                                                    <a href={article.url} target="_blank" rel="noopener noreferrer">{article.title}</a>
-                                                </h3>
-                                                <p className="text-sm text-mutedBrown/70 line-clamp-3 mb-4">{article.description}</p>
-
-                                                {/* AI Summary */}
-                                                {summaries[article.url] && (
-                                                    <div className="mb-4 p-3 bg-sageGreen/5 border border-sageGreen/20 rounded-xl">
-                                                        <p className="text-xs font-semibold text-sageGreen mb-1 flex items-center">
-                                                            <SparklesIcon className="w-3 h-3 mr-1" />
-                                                            AI Summary
-                                                        </p>
-                                                        <p className="text-sm text-charcoal/80">{summaries[article.url]}</p>
-                                                    </div>
-                                                )}
-
-                                                {/* Related Stories */}
-                                                {showingRelated[article.url] && relatedArticles[article.url] && (
-                                                    <div className="mb-4 p-3 bg-mutedRose/5 border border-mutedRose/20 rounded-xl">
-                                                        <p className="text-xs font-semibold text-mutedRose mb-2 flex items-center">
-                                                            <SparklesIcon className="w-3 h-3 mr-1" />
-                                                            Related Stories
-                                                        </p>
-                                                        <div className="space-y-2">
-                                                            {relatedArticles[article.url].map((related, idx) => (
-                                                                <div key={idx} className="text-xs p-2 bg-white/50 rounded-lg hover:bg-white/80 transition-colors">
-                                                                    <div className="flex items-center justify-between mb-1">
-                                                                        <span className="font-semibold text-mutedRose">
-                                                                            {(related.similarity * 100).toFixed(0)}% similar
-                                                                        </span>
-                                                                        <span className="text-mutedBrown/60">{related.source}</span>
-                                                                    </div>
-                                                                    <a
-                                                                        href={related.url}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-charcoal hover:text-sageGreen line-clamp-2"
-                                                                    >
-                                                                        {related.title}
-                                                                    </a>
+                                                        {/* Confidence Score */}
+                                                        {article.sentiment?.score && (
+                                                            <div className="absolute bottom-3 left-3">
+                                                                <div className="bg-charcoal/80 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-white shadow-md">
+                                                                    {(article.sentiment.score * 100).toFixed(0)}% Confidence
                                                                 </div>
-                                                            ))}
-                                                        </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
-
-                                                <div className="flex items-center justify-between pt-3 border-t border-mutedBrown/10">
-                                                    <div className="flex items-center gap-3">
-                                                        <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sageGreen hover:text-sageGreen/80 flex items-center">
-                                                            Read more <ArrowRightIcon className="ml-1 w-3 h-3" />
-                                                        </a>
-                                                        <button
-                                                            onClick={() => handleSummarize(article)}
-                                                            disabled={summarizing[article.url]}
-                                                            className="text-xs px-2 py-1 bg-sageGreen/20 hover:bg-sageGreen/30 text-sageGreen rounded-full flex items-center gap-1 transition-colors disabled:opacity-50"
-                                                        >
-                                                            <SparklesIcon className="w-3 h-3" />
-                                                            {summarizing[article.url] ? 'Summarizing...' : 'AI Summarize'}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleShowRelated(article.url)}
-                                                            className="text-xs px-2 py-1 bg-mutedRose/20 hover:bg-mutedRose/30 text-mutedRose rounded-full flex items-center gap-1 transition-colors"
-                                                        >
-                                                            <SparklesIcon className="w-3 h-3" />
-                                                            {showingRelated[article.url] ? 'Hide Related' : 'Related Stories'}
-                                                        </button>
+                                                <div className="p-5">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <span className="text-xs font-bold text-mutedRose uppercase tracking-wide">{article.source?.name || 'News'}</span>
+                                                        <span className="text-xs text-charcoal/60 font-medium">{new Date(article.publishedAt).toLocaleDateString()}</span>
                                                     </div>
-                                                    {article.sentiment?.score && (
-                                                        <span className="text-xs text-mutedBrown/50">Confidence: {(article.sentiment.score * 100).toFixed(0)}%</span>
+                                                    <h3 className="font-bold text-charcoal mb-2 line-clamp-2 group-hover:text-sageGreen transition-colors text-base">
+                                                        <a href={article.url} target="_blank" rel="noopener noreferrer">{article.title}</a>
+                                                    </h3>
+                                                    <p className="text-sm text-charcoal/80 line-clamp-3 mb-4 leading-relaxed">{article.description}</p>
+
+                                                    {/* AI Summary */}
+                                                    {summaries[article.url] && (
+                                                        <div className="mb-4 p-3 bg-sageGreen/5 border border-sageGreen/20 rounded-xl">
+                                                            <p className="text-xs font-bold text-sageGreen mb-1 flex items-center">
+                                                                <SparklesIcon className="w-3 h-3 mr-1" />
+                                                                AI Summary
+                                                            </p>
+                                                            <p className="text-sm text-charcoal leading-relaxed">{summaries[article.url]}</p>
+                                                        </div>
                                                     )}
+
+                                                    {/* Related Stories */}
+                                                    {showingRelated[article.url] && relatedArticles[article.url] && (
+                                                        <div className="mb-4 p-3 bg-mutedRose/5 border border-mutedRose/20 rounded-xl">
+                                                            <p className="text-xs font-semibold text-mutedRose mb-2 flex items-center">
+                                                                <SparklesIcon className="w-3 h-3 mr-1" />
+                                                                Related Stories
+                                                            </p>
+                                                            <div className="space-y-2">
+                                                                {relatedArticles[article.url].map((related, idx) => (
+                                                                    <div key={idx} className="text-xs p-2 bg-white/50 rounded-lg hover:bg-white/80 transition-colors">
+                                                                        <div className="flex items-center justify-between mb-1">
+                                                                            <span className="font-semibold text-mutedRose">
+                                                                                {(related.similarity * 100).toFixed(0)}% similar
+                                                                            </span>
+                                                                            <span className="text-mutedBrown/60">{related.source}</span>
+                                                                        </div>
+                                                                        <a
+                                                                            href={related.url}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-charcoal hover:text-sageGreen line-clamp-2"
+                                                                        >
+                                                                            {related.title}
+                                                                        </a>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center justify-between pt-3 border-t border-mutedBrown/10">
+                                                        <div className="flex items-center gap-3">
+                                                            <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-charcoal hover:text-sageGreen flex items-center gap-1 transition-colors">
+                                                                <span>Read more</span>
+                                                                <ArrowRightIcon className="w-3.5 h-3.5" />
+                                                            </a>
+                                                            <button
+                                                                onClick={() => handleSummarize(article)}
+                                                                disabled={summarizing[article.url]}
+                                                                className="custom-btn flex items-center gap-1"
+                                                            >
+                                                                <SparklesIcon className="w-2.5 h-2.5" />
+                                                                <span className="text-[10px]">{summarizing[article.url] ? 'Summarizing...' : 'AI Summarize'}</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleShowRelated(article)}
+                                                                className="custom-btn custom-btn-secondary flex items-center gap-1"
+                                                            >
+                                                                <SparklesIcon className="w-2.5 h-2.5" />
+                                                                <span className="text-[10px]">{showingRelated[article.url] ? 'Hide Related' : 'Related Stories'}</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </article>
-                                    ))}
-                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                    {displayedArticlesCount < featuredArticles.length && (
+                                        <div className="mt-8 text-center">
+                                            <button
+                                                onClick={handleLoadMore}
+                                                className="custom-btn flex items-center justify-center gap-2 mx-auto px-8"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                                <span className="text-[10px]">Load More ({featuredArticles.length - displayedArticlesCount} remaining)</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </section>
                     </div>
 
                     {/* Quick Stats */}
-                    <section className="mt-12 bg-white/80 border border-white/70 rounded-3xl p-8 shadow-lg">
+                    <section className="mt-12 bg-white/95 border border-white/70 rounded-3xl p-8 shadow-lg scroll-reveal">
                         <h3 className="text-2xl font-bold mb-6 text-charcoal flex items-center">
                             <span className="w-2 h-2 bg-sageGreen rounded-full mr-3 animate-pulse"></span>
                             Real-Time Analytics
@@ -447,16 +496,23 @@ export default function App() {
                     </section>
 
                     {/* Trending Entities Section */}
-                    <section className="mt-12 bg-white/80 border border-white/70 rounded-3xl p-8 shadow-lg">
-                        <h3 className="text-2xl font-bold mb-6 text-charcoal flex items-center">
-                            <span className="w-2 h-2 bg-mutedRose rounded-full mr-3 animate-pulse"></span>
-                            Trending Entities (ML-Powered)
-                        </h3>
+                    <section className="mt-12 bg-white/95 border border-white/70 rounded-3xl p-8 shadow-lg scroll-reveal scroll-reveal-delay-1">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-2xl font-bold text-charcoal flex items-center">
+                                <span className="w-2 h-2 bg-mutedRose rounded-full mr-3 animate-pulse"></span>
+                                Trending Entities
+                            </h3>
+                            <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-md">
+                                <SparklesIcon className="w-3 h-3" />
+                                <span>ML Powered</span>
+                            </div>
+                        </div>
                         <div className="grid md:grid-cols-3 gap-6">
                             {/* People */}
                             <div>
-                                <h4 className="text-sm font-bold text-mutedBrown/60 uppercase tracking-wide mb-3 flex items-center">
-                                    👤 People
+                                <h4 className="text-sm font-bold text-mutedBrown/60 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                    <PersonIcon className="w-4 h-4" />
+                                    People
                                 </h4>
                                 <div className="space-y-2">
                                     {(entities.PERSON || []).slice(0, 5).map(([name, count], i) => (
@@ -479,8 +535,9 @@ export default function App() {
 
                             {/* Organizations */}
                             <div>
-                                <h4 className="text-sm font-bold text-mutedBrown/60 uppercase tracking-wide mb-3 flex items-center">
-                                    🏢 Organizations
+                                <h4 className="text-sm font-bold text-mutedBrown/60 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                    <BuildingIcon className="w-4 h-4" />
+                                    Organizations
                                 </h4>
                                 <div className="space-y-2">
                                     {(entities.ORG || []).slice(0, 5).map(([name, count], i) => (
@@ -503,8 +560,9 @@ export default function App() {
 
                             {/* Locations */}
                             <div>
-                                <h4 className="text-sm font-bold text-mutedBrown/60 uppercase tracking-wide mb-3 flex items-center">
-                                    🌍 Locations
+                                <h4 className="text-sm font-bold text-mutedBrown/60 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                    <LocationIcon className="w-4 h-4" />
+                                    Locations
                                 </h4>
                                 <div className="space-y-2">
                                     {(entities.GPE || []).slice(0, 5).map(([name, count], i) => (
@@ -529,6 +587,9 @@ export default function App() {
                             Extracted using spaCy NER • Click to search
                         </p>
                     </section>
+
+                    {/* Discovered Topics Section */}
+                    <Topics apiBase={API_BASE} />
                 </main>
             )}
 
@@ -540,40 +601,102 @@ export default function App() {
             )}
 
             {/* Footer */}
-            <footer id="footer" className="mt-20 bg-charcoal/95 border-t border-white/20 text-warmBeige">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-                    <div className="grid md:grid-cols-3 gap-12 mb-12">
-                        {/* Sentiment Analysis */}
-                        <div>
-                            <div className="flex items-center justify-center w-12 h-12 bg-sageGreen/30 rounded-2xl mb-4 border border-sageGreen/40 shadow-sm">
-                                <ArrowUpIcon className="w-6 h-6 text-sageGreen" />
-                            </div>
-                            <h4 className="text-lg font-semibold mb-3">Sentiment Analysis</h4>
-                            <p className="text-sm text-warmBeige/70">ML classifies news tone as positive, negative, or neutral</p>
-                        </div>
+            <footer id="footer" className="mt-20 bg-gradient-to-b from-charcoal to-charcoal/95 border-t border-white/10 text-warmBeige overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {/* Brand */}
+                    <div className="text-center mb-6">
+                        <h3 className="text-2xl font-bold text-warmBeige mb-2">News<span className="text-mutedRose">Pulse</span></h3>
+                        <p className="text-warmBeige/60 text-sm">Real-time news intelligence powered by ML & AI</p>
+                    </div>
 
-                        {/* Trend Detection */}
-                        <div>
-                            <div className="flex items-center justify-center w-12 h-12 bg-mutedRose/30 rounded-2xl mb-4 border border-mutedRose/40 shadow-sm">
-                                <TrendingIcon className="w-6 h-6 text-mutedRose" />
-                            </div>
-                            <h4 className="text-lg font-semibold mb-3">Trend Detection</h4>
-                            <p className="text-sm text-warmBeige/70">NLP extracts keywords and ranks emerging vs. established trends</p>
-                        </div>
-
-                        {/* AI Summarization */}
-                        <div>
-                            <div className="flex items-center justify-center w-12 h-12 bg-sageGreen/30 rounded-2xl mb-4 border border-sageGreen/40 shadow-sm">
-                                <SearchIcon className="w-6 h-6 text-sageGreen" />
-                            </div>
-                            <h4 className="text-lg font-semibold mb-3">AI Summarization</h4>
-                            <p className="text-sm text-warmBeige/70">Google Gemini AI generates concise article summaries</p>
+                    {/* Auto-scrolling Features Belt */}
+                    <div className="relative mb-8">
+                        <div className="flex gap-4 animate-scroll">
+                            {/* Duplicate the features array twice for seamless loop */}
+                            {[...Array(2)].map((_, setIndex) => (
+                                <>
+                                    <div key={`${setIndex}-1`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <span className="text-2xl">📡</span>
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Real-time Polling</h4>
+                                            <p className="text-xs text-warmBeige/50">Every 30 minutes</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-2`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <ArrowUpIcon className="w-6 h-6 text-sageGreen" />
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Sentiment Analysis</h4>
+                                            <p className="text-xs text-warmBeige/50">ML classification</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-3`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <TrendingIcon className="w-6 h-6 text-mutedRose" />
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Trend Detection</h4>
+                                            <p className="text-xs text-warmBeige/50">NLP keywords</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-4`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <SparklesIcon className="w-6 h-6 text-sageGreen" />
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">AI Summarization</h4>
+                                            <p className="text-xs text-warmBeige/50">Google Gemini</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-5`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <span className="text-2xl">🏷️</span>
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Entity Extraction</h4>
+                                            <p className="text-xs text-warmBeige/50">spaCy NER</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-6`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <span className="text-2xl">🧠</span>
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Topic Modeling</h4>
+                                            <p className="text-xs text-warmBeige/50">BERTopic</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-7`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <span className="text-2xl">🔔</span>
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Breaking News</h4>
+                                            <p className="text-xs text-warmBeige/50">Multi-signal</p>
+                                        </div>
+                                    </div>
+                                    <div key={`${setIndex}-8`} className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                                        <span className="text-2xl">🔗</span>
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-warmBeige">Related Stories</h4>
+                                            <p className="text-xs text-warmBeige/50">Semantic similarity</p>
+                                        </div>
+                                    </div>
+                                </>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Credit */}
-                    <div className="border-t border-white/10 pt-8 text-center">
-                        <p className="text-warmBeige/80">Made with ❤️ by <span className="font-semibold text-sageGreen">Sriram</span></p>
+                    {/* Footer Bottom */}
+                    <div className="border-t border-white/10 pt-6">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-1 text-warmBeige/80 text-sm">
+                                <span>Made with</span>
+                                <HeartIcon className="w-4 h-4 text-mutedRose" />
+                                <span>by</span>
+                                <span className="font-semibold text-sageGreen">Sriram Madala</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <a href="https://www.linkedin.com/in/sriram-madala-68799728b" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-warmBeige/70 hover:bg-[#0077B5]/20 hover:border-[#0077B5]/40 hover:text-[#0077B5] transition-all text-xs">
+                                    <LinkedInIcon className="w-4 h-4" />
+                                    <span>LinkedIn</span>
+                                </a>
+                                <a href="https://github.com/SriramWorkSpace" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-warmBeige/70 hover:bg-white/10 hover:border-white/30 hover:text-warmBeige transition-all text-xs">
+                                    <GitHubIcon className="w-4 h-4" />
+                                    <span>GitHub</span>
+                                </a>
+                            </div>
+                            <p className="text-xs text-warmBeige/50">© {new Date().getFullYear()} NewsPulse</p>
+                        </div>
                     </div>
                 </div>
             </footer>
