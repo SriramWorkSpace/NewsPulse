@@ -6,6 +6,8 @@ from datetime import UTC, datetime, timedelta
 from app.core.config import settings
 from app.services.db import delete_older_than, init_db, upsert_article
 from app.services.newsapi_client import NewsAPIClient
+from app.services.ml_cache import init_ml_cache_tables
+from app.services.ml_processor import run_ml_processing
 
 
 def _now_iso() -> str:
@@ -25,6 +27,7 @@ class HeadlinePoller:
 
     async def start(self) -> None:
         await init_db(self._sqlite_path)
+        await init_ml_cache_tables(self._sqlite_path)
         self._task = asyncio.create_task(self._run(), name="headline_poller")
 
     async def stop(self) -> None:
@@ -57,6 +60,11 @@ class HeadlinePoller:
 
                 cutoff = _cutoff_iso(settings.retention_hours)
                 await delete_older_than(self._sqlite_path, cutoff_iso=cutoff)
+                
+                # Run ML processing after successful poll
+                print(f"📊 Poll complete - fetched {len(resp.articles)} articles", flush=True)
+                await run_ml_processing(self._sqlite_path)
+                
             except Exception:
                 # v1: swallow poll errors to keep API serving; surfaced via logs
                 pass

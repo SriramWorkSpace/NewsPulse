@@ -92,6 +92,8 @@ async def get_related_articles(article_index: int, top_k: int = 5):
 async def get_related_articles_by_url(url: str, top_k: int = 3, title: str = None):
     """
     Get articles related to a specific article by URL or title.
+    
+    Uses pre-computed embeddings from the ML cache for fast semantic similarity.
 
     Args:
         url: URL of the article to find relatives for
@@ -101,44 +103,67 @@ async def get_related_articles_by_url(url: str, top_k: int = 3, title: str = Non
     Returns:
         List of related articles with similarity scores
     """
-    # Get recent articles
+    from app.services.ml_cache import get_embeddings
+    import numpy as np
+    
+    # Get all articles and cached embeddings
     articles = await get_all_articles(settings.sqlite_path)
-
-    if not articles:
-        return {"related": []}
-
-    # Find the article index by URL
+    embeddings_dict = await get_embeddings(settings.sqlite_path)
+    
+    if not embeddings_dict:
+        return {
+            "related": [],
+            "message": "Embeddings are being computed. Check back in a few minutes."
+        }
+    
+    # Find target article index
     article_index = None
     for idx, article in enumerate(articles):
-        if article.get("url") == url:
+        if article['url'] == url:
             article_index = idx
             break
-
-    # If not found by URL and title provided, try semantic search
+    
+    # If not found by URL, try title match
     if article_index is None and title:
-        clusterer = get_article_clusterer()
-        # Create embedding for the provided title
-        title_embedding = clusterer.get_embeddings([title])
+        for idx, article in enumerate(articles):
+            if article.get('title') == title:
+                article_index = idx
+                break
+    
+    if article_index is None:
+        # Article not in our database - compute embedding for external article
+        if not title:
+            return {"related": [], "message": "Article not found and no title provided"}
         
-        if len(title_embedding) > 0:
-            # Get embeddings for all articles
-            article_texts = [
-                f"{a.get('title', '')} {a.get('description', '')}" 
-                for a in articles
-            ]
-            article_embeddings = clusterer.get_embeddings(article_texts)
-            
-            # Find most similar articles
-            from sklearn.metrics.pairwise import cosine_similarity
-            similarities = cosine_similarity(title_embedding, article_embeddings)[0]
-            
-            # Get top_k most similar (excluding threshold for broader matches)
-            similar_indices = similarities.argsort()[-top_k:][::-1]
-            
-            results = []
-            for idx in similar_indices:
-                if similarities[idx] > 0.2:  # Lower threshold for cross-dataset matching
-                    article = articles[idx]
+        # Lazy load model just for this embedding
+        from app.services.article_clusterer import get_article_clusterer
+        clusterer = get_article_clusterer()
+        title_embedding = clusterer.get_embeddings([title])[0]
+        del clusterer
+        
+        # Compare with all cached embeddings
+        from sklearn.metrics.pairwise import cosine_similarity
+        
+        # Convert dict to arrays
+        article_urls = []
+        article_embeddings = []
+        for art_url, emb in embeddings_dict.items():
+            article_urls.append(art_url)
+            article_embeddings.append(emb)
+        
+        article_embeddings = np.array(article_embeddings)
+        similarities = cosine_similarity([title_embedding], article_embeddings)[0]
+        
+        # Get top_k most similar
+        similar_indices = similarities.argsort()[-top_k:][::-1]
+        
+        results = []
+        for idx in similar_indices:
+            if similarities[idx] > 0.2:
+                # Find article by URL
+                art_url = article_urls[idx]
+                article = next((a for a in articles if a['url'] == art_url), None)
+                if article:
                     results.append({
                         "similarity": float(similarities[idx]),
                         "title": article.get("title"),
@@ -146,31 +171,44 @@ async def get_related_articles_by_url(url: str, top_k: int = 3, title: str = Non
                         "source": article.get("source_name"),
                         "published_at": article.get("published_at"),
                     })
-            
-            return {"related": results}
+        
+        return {"related": results}
     
-    if article_index is None:
-        return {"related": []}
-
-    # Find related articles using existing method
-    clusterer = get_article_clusterer()
-    related = clusterer.find_related_articles(
-        article_index, articles, top_k=top_k, threshold=0.4
-    )
-
-    # Return articles with their similarity scores
+    # Article found in our database - use cached embeddings
+    target_url = articles[article_index]['url']
+    target_embedding = embeddings_dict.get(target_url)
+    
+    if not target_embedding:
+        return {"related": [], "message": "Embedding not found for this article"}
+    
+    # Compute similarities with all other articles
+    from sklearn.metrics.pairwise import cosine_similarity
+    
+    similarities = []
+    urls_list = []
+    for art_url, emb in embeddings_dict.items():
+        if art_url != target_url:  # Exclude self
+            similarities.append(cosine_similarity([target_embedding], [emb])[0][0])
+            urls_list.append(art_url)
+    
+    # Get top_k most similar
+    similarities = np.array(similarities)
+    top_indices = similarities.argsort()[-top_k:][::-1]
+    
     results = []
-    for idx, score in related:
-        if idx < len(articles):
-            article = articles[idx]
-            results.append({
-                "similarity": score,
-                "title": article.get("title"),
-                "url": article.get("url"),
-                "source": article.get("source_name"),
-                "published_at": article.get("published_at"),
-            })
-
+    for idx in top_indices:
+        if similarities[idx] > 0.4:  # Similarity threshold
+            art_url = urls_list[idx]
+            article = next((a for a in articles if a['url'] == art_url), None)
+            if article:
+                results.append({
+                    "similarity": float(similarities[idx]),
+                    "title": article.get("title"),
+                    "url": article.get("url"),
+                    "source": article.get("source_name"),
+                    "published_at": article.get("published_at"),
+                })
+    
     return {"related": results}
 
 
@@ -178,43 +216,54 @@ async def get_related_articles_by_url(url: str, top_k: int = 3, title: str = Non
 async def get_article_clusters():
     """
     Get article clusters grouped by semantic similarity.
+    
+    Clusters are pre-computed during the 30-minute polling cycle.
 
-    Returns groups of related articles that discuss similar topics.
+    Returns:
+        Groups of related articles that discuss similar topics
     """
-    # Get recent articles
+    from app.services.ml_cache import get_clusters
+    
+    # Get all articles and cached clusters
     articles = await get_all_articles(settings.sqlite_path)
-
-    if not articles:
-        return {"clusters": []}
-
-    # Cluster articles
-    clusterer = get_article_clusterer()
-    clusters = clusterer.cluster_articles(articles, eps=0.3, min_samples=2)
-
+    clusters_dict = await get_clusters(settings.sqlite_path)
+    
+    if not clusters_dict:
+        return {
+            "clusters": [],
+            "message": "Clusters are being computed. Check back in a few minutes."
+        }
+    
+    # Group articles by cluster_id
+    clusters_map = {}
+    for article in articles:
+        url = article['url']
+        cluster_info = clusters_dict.get(url)
+        if cluster_info:
+            cid = cluster_info['cluster_id']
+            if cid not in clusters_map:
+                clusters_map[cid] = []
+            clusters_map[cid].append(article)
+    
     # Format response (exclude noise cluster -1)
     formatted_clusters = []
-    for cluster_id, article_indices in clusters.items():
+    for cluster_id, cluster_articles in clusters_map.items():
         if cluster_id == -1:  # Skip noise
             continue
-
-        cluster_articles = []
-        for idx in article_indices:
-            if idx < len(articles):
-                article = articles[idx]
-                cluster_articles.append({
-                    "index": idx,
-                    "title": article.get("title"),
-                    "url": article.get("url"),
-                    "source": article.get("source_name"),
-                })
-
-        if cluster_articles:  # Only include non-empty clusters
-            formatted_clusters.append({
-                "cluster_id": cluster_id,
-                "article_count": len(cluster_articles),
-                "articles": cluster_articles
-            })
-
+        
+        formatted_clusters.append({
+            "cluster_id": cluster_id,
+            "article_count": len(cluster_articles),
+            "articles": [
+                {
+                    "title": art.get("title"),
+                    "url": art.get("url"),
+                    "source": art.get("source_name"),
+                }
+                for art in cluster_articles
+            ]
+        })
+    
     return {"clusters": formatted_clusters}
 
 
@@ -222,62 +271,33 @@ async def get_article_clusters():
 async def get_discovered_topics(lookback_hours: int = 24, min_articles: int = 3):
     """
     Get automatically discovered topics from recent articles using BERTopic.
+    
+    Topics are pre-computed during the 30-minute polling cycle and cached.
 
     Args:
-        lookback_hours: Hours to look back for articles (default 24)
-        min_articles: Minimum articles needed for topic discovery (default 3)
+        lookback_hours: Hours to look back for articles (default 24) [ignored, uses cache]
+        min_articles: Minimum articles needed for topic discovery (default 3) [ignored, uses cache]
 
     Returns:
         Dictionary with discovered topics, keywords, and sample articles
     """
-    # Check cache (30 min TTL)
-    now = datetime.now()
-    if _topics_cache["data"] is not None and _topics_cache["timestamp"] is not None:
-        cache_age = (now - _topics_cache["timestamp"]).total_seconds()
-        if cache_age < 1800:  # 30 minutes
-            return _topics_cache["data"]
-
-    # Get recent articles
+    from app.services.ml_cache import get_topics
+    from app.services.db import get_recent_articles
+    
+    # Get cached topics
+    cached_result = await get_topics(settings.sqlite_path)
+    
+    if cached_result:
+        return cached_result
+    
+    # Fallback: No cached data yet (first run)
     articles = await get_recent_articles(settings.sqlite_path, hours=lookback_hours)
-
-    # Early return if not enough articles
-    if len(articles) < min_articles:
-        result = {
-            "topics": [],
-            "uncategorized_count": len(articles),
-            "total_articles": len(articles),
-            "message": f"Need at least {min_articles} articles for topic discovery (found {len(articles)})"
-        }
-        return result
-
-    # Get topic modeler
-    modeler = get_topic_modeler()
-    
-    # Get clusterer for embeddings (reuse existing infrastructure)
-    clusterer = get_article_clusterer()
-    
-    # Prepare texts and get embeddings
-    texts = []
-    for article in articles:
-        text_parts = []
-        if article.get("title"):
-            text_parts.append(article["title"])
-        if article.get("description"):
-            text_parts.append(article["description"])
-        texts.append(" ".join(text_parts) if text_parts else "")
-    
-    embeddings = clusterer.get_embeddings(texts)
-
-    # Discover topics
-    try:
-        result = modeler.discover_topics(
-            articles,
-            embeddings=embeddings,
-            nr_topics="auto",  # Let BERTopic decide optimal number
-            min_topic_size=3,
-        )
-        
-        # Cache the result
+    return {
+        "topics": [],
+        "uncategorized_count": len(articles),
+        "total_articles": len(articles),
+        "message": f"Topics are being computed. Check back in a few minutes."
+    }
         _topics_cache["data"] = result
         _topics_cache["timestamp"] = now
         
@@ -296,6 +316,8 @@ async def get_discovered_topics(lookback_hours: int = 24, min_articles: int = 3)
 async def get_breaking_news(threshold: int = 60):
     """
     Get breaking news detected by analyzing article velocity and novelty.
+    
+    Breaking news detection is pre-computed during the 30-minute polling cycle.
 
     Uses multiple signals:
     - Volume spike: Sudden increase in article count
@@ -306,47 +328,36 @@ async def get_breaking_news(threshold: int = 60):
         threshold: Minimum score to consider breaking news (0-100, default 60)
 
     Returns:
-        List of breaking news stories with scores and metadata
+        Breaking news score, signals, and detection status
     """
-    # Check cache (15 min TTL for breaking news)
-    now = datetime.now()
-    if _breaking_cache["data"] is not None and _breaking_cache["timestamp"] is not None:
-        cache_age = (now - _breaking_cache["timestamp"]).total_seconds()
-        if cache_age < 900:  # 15 minutes
-            cached_data = _breaking_cache["data"]
-            # Filter by threshold (may have changed)
-            filtered = [
-                story for story in cached_data
-                if story.get("score", 0) >= threshold
-            ]
-            return {"breaking": filtered}
-
-    # Get detector
-    detector = get_breaking_news_detector()
+    from app.services.ml_cache import get_breaking_news
     
-    # Get other services
-    entity_extractor = get_entity_extractor()
-    article_clusterer = get_article_clusterer()
-
-    # Detect breaking news
-    try:
-        breaking_stories = await detector.detect_breaking_news(
-            settings.sqlite_path,
-            entity_extractor,
-            article_clusterer,
-            threshold=threshold,
-        )
-
-        # Cache the result
-        _breaking_cache["data"] = breaking_stories
-        _breaking_cache["timestamp"] = now
-
-        return {"breaking": breaking_stories}
-    except Exception as e:
-        # Graceful error handling
-        return {
-            "breaking": [],
-            "error": f"Breaking news detection failed: {str(e)}"
-        }
+    # Get cached breaking news result
+    cached_result = await get_breaking_news(settings.sqlite_path)
+    
+    if cached_result:
+        # Apply threshold filter
+        if cached_result["score"] >= threshold:
+            return {
+                "is_breaking": True,
+                "score": cached_result["score"],
+                "signals": cached_result["signals"],
+                "detected_at": cached_result["detected_at"]
+            }
+        else:
+            return {
+                "is_breaking": False,
+                "score": cached_result["score"],
+                "signals": cached_result["signals"],
+                "message": f"Score {cached_result['score']:.1f} below threshold {threshold}"
+            }
+    
+    # Fallback: No cached data yet
+    return {
+        "is_breaking": False,
+        "score": 0,
+        "signals": {},
+        "message": "Breaking news detection is being computed. Check back in a few minutes."
+    }
 
 

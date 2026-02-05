@@ -4,7 +4,7 @@ import BookIcon from './icons/BookIcon';
 import CloseIcon from './icons/CloseIcon';
 import ArrowRightIcon from './icons/ArrowRightIcon';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export default function Summarize() {
     const [content, setContent] = useState('');

@@ -5,7 +5,7 @@ import ArrowDownIcon from './icons/ArrowDownIcon';
 import ArrowRightIcon from './icons/ArrowRightIcon';
 import SparklesIcon from './icons/SparklesIcon';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const ARTICLES_PER_PAGE = 50;
 const MAX_PAGES = 20;
 
