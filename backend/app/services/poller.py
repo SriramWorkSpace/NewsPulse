@@ -36,7 +36,7 @@ class HeadlinePoller:
             await self._task
         await self._client.close()
 
-    async def _poll_once(self) -> None:
+    async def _poll_once(self, *, skip_ml: bool = False) -> None:
         """Execute a single poll cycle."""
         fetched_at = _now_iso()
         try:
@@ -60,9 +60,11 @@ class HeadlinePoller:
             cutoff = _cutoff_iso(settings.retention_hours)
             await delete_older_than(self._sqlite_path, cutoff_iso=cutoff)
             
-            # Run ML processing after successful poll
             print(f"📊 Poll complete - fetched {len(resp.articles)} articles", flush=True)
-            await run_ml_processing(self._sqlite_path)
+            
+            # Run ML processing after successful poll (unless skipped)
+            if not skip_ml:
+                await run_ml_processing(self._sqlite_path)
             
         except Exception as e:
             # v1: swallow poll errors to keep API serving; surfaced via logs
@@ -71,9 +73,9 @@ class HeadlinePoller:
     async def _run(self) -> None:
         interval = max(1, int(settings.poll_interval_minutes))
         
-        # Run initial poll immediately on startup
-        print("🚀 Running initial poll on startup...", flush=True)
-        await self._poll_once()
+        # Run initial poll immediately on startup (skip ML to avoid memory spike)
+        print("🚀 Running initial poll on startup (ML processing deferred)...", flush=True)
+        await self._poll_once(skip_ml=True)
         
         # Then continue with regular interval polling
         while not self._stop.is_set():
