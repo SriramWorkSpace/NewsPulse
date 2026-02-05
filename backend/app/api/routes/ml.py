@@ -298,18 +298,6 @@ async def get_discovered_topics(lookback_hours: int = 24, min_articles: int = 3)
         "total_articles": len(articles),
         "message": f"Topics are being computed. Check back in a few minutes."
     }
-        _topics_cache["data"] = result
-        _topics_cache["timestamp"] = now
-        
-        return result
-    except Exception as e:
-        # If topic discovery fails, return graceful error
-        return {
-            "topics": [],
-            "uncategorized_count": len(articles),
-            "total_articles": len(articles),
-            "error": f"Topic discovery failed: {str(e)}"
-        }
 
 
 @router.get("/breaking")

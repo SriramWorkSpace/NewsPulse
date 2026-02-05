@@ -158,18 +158,19 @@ export default function Search({ initialQuery = '' }) {
             {/* Search Form */}
             <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
                 <div className="relative">
-                    <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-mutedBrown/40" />
+                    <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-mutedBrown/40 z-10" />
                     <input
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search for technology, business, politics..."
-                        className="w-full pl-14 pr-36 py-5 text-lg bg-white/95 border-2 border-white/60 rounded-full focus:outline-none focus:bg-white focus:border-sageGreen/50 focus:shadow-lg transition-all placeholder-mutedBrown/40 text-charcoal"
+                        className="w-full pl-14 pr-40 py-5 text-lg bg-white/95 border-2 border-white/60 rounded-full focus:outline-none focus:bg-white focus:border-sageGreen/50 focus:shadow-lg transition-all placeholder-mutedBrown/40 text-charcoal truncate"
+                        style={{ paddingRight: '11rem' }}
                     />
                     <button
                         type="submit"
                         disabled={loading || !query.trim()}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 px-8 py-3 bg-sageGreen/40 border border-sageGreen/60 text-charcoal rounded-full hover:bg-sageGreen/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-8 py-3 bg-sageGreen/40 border border-sageGreen/60 text-charcoal rounded-full hover:bg-sageGreen/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-sm z-10"
                     >
                         {loading ? 'Searching...' : 'Search'}
                     </button>
