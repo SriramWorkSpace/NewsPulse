@@ -565,6 +565,209 @@ pytest -v -s
 
 ---
 
+## 🐛 Deployment Troubleshooting
+
+### Common Issues & Solutions
+
+<details>
+<summary><b>❌ Render: "Ran out of memory (used over 512MB)"</b></summary>
+
+**Problem:** ML models (BERTopic, sentence-transformers) loading on every API request exceeded free tier's 512MB limit.
+
+**Solution:** Implemented ML result caching system:
+- ML processing runs **only during 30-min polling cycles**
+- Results stored in SQLite (`article_embeddings`, `article_topics`, `article_clusters`, `breaking_news_cache` tables)
+- API endpoints read from cache instead of loading models
+- Memory usage: **~200MB** (fits free tier!)
+
+**Files Changed:**
+- `backend/app/services/ml_cache.py` - Cache layer
+- `backend/app/services/ml_processor.py` - ML computation during polling
+- `backend/app/services/poller.py` - Integrated ML processing
+- `backend/app/api/routes/ml.py` - Updated endpoints to use cache
+
+</details>
+
+<details>
+<summary><b>❌ Render: "No open ports detected" / Silent crash on startup</b></summary>
+
+**Problem:** App crashed during import before uvicorn could bind to port.
+
+**Root Cause:** Heavy ML imports at module level caused timeout:
+- `from sentence_transformers import SentenceTransformer` (downloads 80MB+ models)
+- `from bertopic import BERTopic` (loads dependencies)
+
+**Solution:** Made imports lazy (inside methods, not module-level):
+
+```python
+# ❌ Before (crashes on import)
+from sentence_transformers import SentenceTransformer
+class TopicModeler:
+    def __init__(self):
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")  # Downloads at startup!
+
+# ✅ After (loads only when needed)
+class TopicModeler:
+    def __init__(self):
+        self.model_name = "all-MiniLM-L6-v2"
+        self._model = None
+    
+    @property
+    def model(self):
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
+```
+
+**Files Changed:**
+- `backend/app/services/topic_modeler.py`
+- `backend/app/services/article_clusterer.py`
+
+</details>
+
+<details>
+<summary><b>❌ Render: GPU PyTorch dependencies too large (~3GB)</b></summary>
+
+**Problem:** Default PyTorch includes CUDA libraries, causing build to fail or exceed memory.
+
+**Solution:** Use CPU-only PyTorch in `requirements.txt`:
+
+```txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+```
+
+This reduces from **3GB → 200MB**.
+
+</details>
+
+<details>
+<summary><b>❌ Frontend: Search/Summarize not working in production</b></summary>
+
+**Problem:** Components had hardcoded API URLs:
+
+```jsx
+const API_BASE = 'http://127.0.0.1:8000';  // ❌ Wrong!
+```
+
+**Solution:** Use environment variable:
+
+```jsx
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+```
+
+**Vercel Environment Variable:**
+```
+VITE_API_BASE_URL=https://newspulse-yc56.onrender.com
+```
+
+**Files Changed:**
+- `frontend/src/components/Search.jsx`
+- `frontend/src/components/Summarize.jsx`
+- `frontend/.env.production`
+
+</details>
+
+<details>
+<summary><b>❌ Render: Markdown formatting in build commands</b></summary>
+
+**Problem:** Copying from README pasted formatted links:
+
+```bash
+# ❌ What got pasted
+pip install -r [requirements.txt](requirements.txt)
+
+# ✅ What should be
+pip install -r requirements.txt
+```
+
+**Solution:** Manually type commands in Render dashboard, don't copy-paste from markdown.
+
+</details>
+
+<details>
+<summary><b>❌ Render: Trailing spaces in "Root Directory" field</b></summary>
+
+**Problem:** Render UI allowed trailing space: `backend ` (notice the space)
+
+**Symptom:** Build command couldn't find `requirements.txt`
+
+**Solution:** Ensure no trailing spaces. Set exactly: `backend`
+
+</details>
+
+<details>
+<summary><b>❌ Render: render.yaml not detected</b></summary>
+
+**Problem:** `render.yaml` placed in `backend/` folder
+
+**Solution:** Must be at **repository root**:
+
+```
+NewsPulse/
+├── render.yaml          ← Here!
+├── backend/
+│   └── requirements.txt
+└── frontend/
+```
+
+If using `render.yaml`, use `cd backend` in commands:
+
+```yaml
+buildCommand: cd backend && pip install -r requirements.txt
+startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+</details>
+
+<details>
+<summary><b>⚠️ Vercel: Deployment Protection blocking access</b></summary>
+
+**Problem:** Site prompts for authentication when accessed publicly.
+
+**Solution:** 
+1. Go to **Settings → Deployment Protection**
+2. Disable **Vercel Authentication**
+3. Ensure project is set to **Public** (Settings → General)
+
+**Note:** This is usually off by default on free Hobby plan.
+
+</details>
+
+### Debugging Tips
+
+**Monitor Memory Usage (Render):**
+```bash
+# In Render Shell
+python -c "import psutil; print(f'Memory: {psutil.Process().memory_info().rss / 1024 / 1024:.1f} MB')"
+```
+
+**Check Logs:**
+- **Render:** Dashboard → Logs tab (check for Python errors)
+- **Vercel:** Dashboard → Deployments → Function Logs
+
+**Test Backend Locally:**
+```bash
+cd backend
+uvicorn app.main:app --reload
+# Visit http://localhost:8000/docs for API testing
+```
+
+**Test Frontend Locally:**
+```bash
+cd frontend
+npm run dev
+# Visit http://localhost:5173
+```
+
+**Environment Variables Checklist:**
+- [ ] Render: `NEWS_API_KEY`, `GEMINI_API_KEY`, `PYTHON_VERSION=3.11.0`
+- [ ] Vercel: `VITE_API_BASE_URL=https://your-render-url.onrender.com`
+- [ ] Both: No trailing spaces, no quotes around values
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to:
