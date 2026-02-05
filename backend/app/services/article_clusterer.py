@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import DBSCAN
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -25,7 +24,16 @@ class ArticleClusterer:
             model_name: Name of the sentence-transformers model to use
                        'all-MiniLM-L6-v2' is fast and good quality (384 dimensions)
         """
-        self.model = SentenceTransformer(model_name)
+        self.model_name = model_name
+        self._model = None
+
+    @property
+    def model(self):
+        """Lazy load the sentence transformer model."""
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
 
     def get_embeddings(self, texts: list[str]) -> np.ndarray:
         """

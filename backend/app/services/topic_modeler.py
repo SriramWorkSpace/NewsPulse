@@ -6,8 +6,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from bertopic import BERTopic
-from sentence_transformers import SentenceTransformer
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -24,8 +22,17 @@ class TopicModeler:
             model_name: Name of the sentence-transformers model to use
                        Should match the one used in ArticleClusterer for consistency
         """
-        self.embedding_model = SentenceTransformer(model_name)
+        self.model_name = model_name
+        self._embedding_model = None
         self.topic_model = None
+
+    @property
+    def embedding_model(self):
+        """Lazy load the embedding model."""
+        if self._embedding_model is None:
+            from sentence_transformers import SentenceTransformer
+            self._embedding_model = SentenceTransformer(self.model_name)
+        return self._embedding_model
 
     def discover_topics(
         self,
@@ -82,6 +89,9 @@ class TopicModeler:
                 texts, show_progress_bar=False
             )
 
+        # Import BERTopic lazily to speed up startup
+        from bertopic import BERTopic
+        
         # Initialize BERTopic with settings optimized for news articles
         self.topic_model = BERTopic(
             embedding_model=self.embedding_model,
