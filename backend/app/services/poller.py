@@ -6,8 +6,6 @@ from datetime import UTC, datetime, timedelta
 from app.core.config import settings
 from app.services.db import delete_older_than, init_db, upsert_article
 from app.services.newsapi_client import NewsAPIClient
-from app.services.ml_cache import init_ml_cache_tables
-from app.services.ml_processor import run_ml_processing
 
 
 def _now_iso() -> str:
@@ -27,7 +25,6 @@ class HeadlinePoller:
 
     async def start(self) -> None:
         await init_db(self._sqlite_path)
-        await init_ml_cache_tables(self._sqlite_path)
         self._task = asyncio.create_task(self._run(), name="headline_poller")
 
     async def stop(self) -> None:
@@ -36,7 +33,7 @@ class HeadlinePoller:
             await self._task
         await self._client.close()
 
-    async def _poll_once(self, *, skip_ml: bool = False) -> None:
+    async def _poll_once(self) -> None:
         """Execute a single poll cycle."""
         fetched_at = _now_iso()
         try:
@@ -62,10 +59,6 @@ class HeadlinePoller:
             
             print(f"📊 Poll complete - fetched {len(resp.articles)} articles", flush=True)
             
-            # Run ML processing after successful poll (unless skipped)
-            if not skip_ml:
-                await run_ml_processing(self._sqlite_path)
-            
         except Exception as e:
             # v1: swallow poll errors to keep API serving; surfaced via logs
             print(f"⚠️ Poll error: {e}", flush=True)
@@ -73,9 +66,9 @@ class HeadlinePoller:
     async def _run(self) -> None:
         interval = max(1, int(settings.poll_interval_minutes))
         
-        # Run initial poll immediately on startup (skip ML to avoid memory spike)
-        print("🚀 Running initial poll on startup (ML processing deferred)...", flush=True)
-        await self._poll_once(skip_ml=True)
+        # Run initial poll immediately on startup
+        print("🚀 Running initial poll on startup...", flush=True)
+        await self._poll_once()
         
         # Then continue with regular interval polling
         while not self._stop.is_set():

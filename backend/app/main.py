@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.search import router as search_router
 from app.api.routes.summarize import router as summarize_router
 from app.api.routes.trends import router as trends_router
-from app.api.routes.ml import router as ml_router
 from app.core.config import settings
 from app.services.analytics.keywords import load_spacy_model
 from app.services.poller import HeadlinePoller
@@ -38,7 +37,6 @@ app.add_middleware(
 app.include_router(trends_router)
 app.include_router(search_router)
 app.include_router(summarize_router)
-app.include_router(ml_router)
 
 
 @app.get("/health")

@@ -8,7 +8,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
-**AI-powered news intelligence platform with real-time ML analysis, trend detection, and breaking news alerts.**
+**AI-powered news intelligence platform with real-time analysis, trend detection, and AI summarization.**
 
 🌐 **[Live Demo](https://news-pulse-sand.vercel.app)** | 📚 **[API Docs](https://newspulse-yc56.onrender.com/docs)** | 🔗 **[LinkedIn](https://www.linkedin.com/in/sriram-madala-68799728b)**
 
@@ -16,11 +16,40 @@
 
 ---
 
+## 📋 Branch Strategy
+
+This project has two branches optimized for different deployment scenarios:
+
+### **🌱 `main` Branch** *(Production - Free Tier)*
+- ✅ **Deployed on Render Free Tier** (512MB RAM)
+- ✅ Core features: News polling, trends, entities, search, AI summarization
+- ❌ ML features disabled (topics, breaking news, article clustering)
+- **Memory footprint:** ~200MB
+- **Use for:** Free deployment, portfolio demos, testing
+
+### **🚀 `full-featured` Branch** *(Development - Full ML)*
+- ✅ **All ML features enabled**: Topic modeling, semantic clustering, breaking news detection
+- ✅ Complete feature set as originally designed
+- ⚠️ Requires 1-2GB RAM (use locally or on Oracle Cloud/GCP)
+- **Memory footprint:** ~600MB-1GB
+- **Use for:** Local development, paid hosting, full demos
+
+**Switch branches:**
+```bash
+# For free tier deployment
+git checkout main
+
+# For full ML features
+git checkout full-featured
+```
+
+---
+
 ## ✨ What is NewsPulse?
 
-NewsPulse is a **sophisticated news intelligence platform** that doesn't just fetch headlines—it **understands them**. By combining real-time data collection with advanced ML/NLP techniques, NewsPulse transforms raw news feeds into actionable insights.
+NewsPulse is a **news intelligence platform** that transforms raw headlines into insights. The `main` branch focuses on essential features that work reliably on free hosting, while `full-featured` includes advanced ML capabilities.
 
-### 🎯 Key Capabilities
+### 🎯 Key Capabilities (`main` branch)
 
 <table>
 <tr>
@@ -29,36 +58,47 @@ NewsPulse is a **sophisticated news intelligence platform** that doesn't just fe
 #### 🔄 **Real-Time Intelligence**
 - ⏱️ **30-minute polling** from top US news sources
 - 📊 **48-hour rolling window** for trend analysis
-- 🔄 **Live data refresh** with zero downtime
+- 🔄 **Immediate data on startup**
+- 💾 **SQLite storage** for offline access
 
 </td>
 <td width="50%">
 
-#### 🧠 **ML-Powered Analysis**
+#### 🧠 **NLP Analysis**
 - 🎭 **Sentiment classification** (Positive/Neutral/Negative)
-- 🏷️ **Entity extraction** (People, Orgs, Locations)
-- 🗂️ **Topic modeling** with BERTopic
-- 🔗 **Semantic clustering** of related stories
+- 🏷️ **Entity extraction** (People, Orgs, Locations, Events)
+- 📊 **Trend growth tracking** (emerging vs established)
+- 🔍 **Keyword extraction** with spaCy NLP
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-#### 🚨 **Breaking News Detection**
-- 📈 **Volume spike analysis** (40% weight)
-- ✨ **Novel entity tracking** (35% weight)
-- 🔄 **Rapid clustering** (25% weight)
-- 🎯 **Multi-signal scoring** algorithm
+#### 🤖 **AI Enhancement**
+- 🌟 **Smart summarization** via Google Gemini
+- 🔍 **Full-text search** with pagination
+- 📈 **Trending topics** detection
+- 🌐 **Multi-source aggregation** (NewsAPI)
 
 </td>
 <td width="50%">
 
-#### 🤖 **AI Enhancement**
-- 🌟 **Smart summarization** via Google Gemini
-- 🔍 **Semantic search** using embeddings
-- 📊 **Trend growth tracking** (emerging vs established)
-- 🎨 **Related stories** discovery
+#### 🎨 **Modern UI/UX**
+- ✨ **Glass-morphism design** with smooth animations
+- 📱 **Fully responsive** (mobile-first)
+- 🎨 **Warm color palette** (beige/rose/sage)
+- ⚡ **Fast load times** (<2s)
+
+</td>
+</tr>
+</table>
+
+### 🚀 Additional Features (`full-featured` branch only)
+- 🗂️ **Topic modeling** with BERTopic
+- 🔗 **Semantic article clustering** 
+- 🚨 **Breaking news detection** with multi-signal scoring
+- 🎯 **Related stories** discovery via embeddings
 
 </td>
 </tr>

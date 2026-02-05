@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Search from './components/Search'
-import Topics from './components/Topics'
-import BreakingNews from './components/BreakingNews'
+// import Topics from './components/Topics'  // ML feature - disabled for free tier
+// import BreakingNews from './components/BreakingNews'  // ML feature - disabled for free tier
 import LoadingScreen from './components/LoadingScreen'
 import TrendingIcon from './components/icons/TrendingIcon'
 import SparklesIcon from './components/icons/SparklesIcon'
@@ -183,8 +183,8 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-warmBeige">
-            {/* Breaking News Banner */}
-            <BreakingNews apiBase={API_BASE} />
+            {/* Breaking News Banner - ML feature disabled for free tier */}
+            {/* <BreakingNews apiBase={API_BASE} /> */}
 
             {/* Glass Morphism Header */}
             <header className="sticky top-0 z-40 backdrop-blur-xl bg-charcoal/80 border-b border-white/10">
@@ -400,13 +400,14 @@ export default function App() {
                                                                 <SparklesIcon className="w-2.5 h-2.5" />
                                                                 <span className="text-[10px]">{summarizing[article.url] ? 'Summarizing...' : 'AI Summarize'}</span>
                                                             </button>
-                                                            <button
+                                                            {/* Related Stories button - ML feature disabled for free tier */}
+                                                            {/* <button
                                                                 onClick={() => handleShowRelated(article)}
                                                                 className="custom-btn custom-btn-secondary flex items-center gap-1"
                                                             >
                                                                 <SparklesIcon className="w-2.5 h-2.5" />
                                                                 <span className="text-[10px]">{showingRelated[article.url] ? 'Hide Related' : 'Related Stories'}</span>
-                                                            </button>
+                                                            </button> */}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -595,8 +596,8 @@ export default function App() {
                         </p>
                     </section>
 
-                    {/* Discovered Topics Section */}
-                    <Topics apiBase={API_BASE} />
+                    {/* Discovered Topics Section - ML feature disabled for free tier */}
+                    {/* <Topics apiBase={API_BASE} /> */}
                 </main>
             )}
 
