@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: newspulse-api
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt && python -m spacy download en_core_web_sm
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: NEWS_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: POLL_INTERVAL_MINUTES
+        value: 30
+      - key: RETENTION_HOURS
+        value: 48
+      - key: SQLITE_PATH
+        value: /opt/render/project/src/news.db
+      - key: PYTHON_VERSION
+        value: 3.11.0

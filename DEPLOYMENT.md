@@ -1,45 +1,22 @@
-# NewsPulse - Deployment & Status Report
+# 🚀 NewsPulse - Deployment Guide
 
-## 🎉 System Status: OPERATIONAL
-
-Both backend and frontend are now running successfully!
-
-- **Backend API**: http://127.0.0.1:8000
-- **Frontend UI**: http://localhost:5173/
-- **Articles Collected**: 29 (and growing every 30 minutes)
+Complete guide for deploying NewsPulse to production: Backend on Render, Frontend on Vercel.
 
 ---
 
-## ✅ What's Working
+## 📋 Prerequisites
 
-### Backend (FastAPI + SQLite)
-- ✅ **Headline Poller**: Automatically fetches US news every 30 minutes
-- ✅ **SQLite Storage**: 29 articles collected and stored with 48h retention
-- ✅ **Trend Analysis**: Keyword extraction using spaCy noun chunks
-- ✅ **API Endpoints**:
-  - `GET /trends` - Returns trending keywords with growth metrics
-  - `GET /search` - Search NewsAPI for specific queries
-  - `POST /summarize` - Summarize articles using Google Gemini AI
-
-### Frontend (React + Vite + Tailwind)
-- ✅ **Modern UI**: Clean, responsive design with Modern Heritage palette
-- ✅ **Real-time Trends**: Fetches and displays trending keywords from backend
-- ✅ **Growth Indicators**: Shows emerging vs. established trends
-
-### NLP & Analytics
-- ✅ **Keyword Extraction**: spaCy en_core_web_sm model extracting lemmatized noun chunks
-- ✅ **Trend Ranking**: Locked algorithm prioritizing new/emerging trends over growth %
-- ✅ **Sentiment Analysis**: Pre-trained model ready (not yet wired to /search)
+- GitHub account
+- [Render account](https://render.com) (free)
+- [Vercel account](https://vercel.com) (free)
+- NewsAPI key from [newsapi.org](https://newsapi.org)
+- Google Gemini API key from [ai.google.dev](https://ai.google.dev)
 
 ---
 
-## 🔧 Technical Stack
+## 🔧 Backend Deployment (Render)
 
-### Backend
-```
-Python 3.13.1
-FastAPI 0.115.6
-SQLite (via aiosqlite 0.20.0)
+### 1. Push to GitHub
 spaCy 3.8.11 + en_core_web_sm
 scikit-learn 1.6.1
 NewsAPI (HTTP client)
@@ -72,62 +49,250 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ---
 
-## 🚀 Running the System
+## � Backend Deployment (Render)
+
+### 1. Push to GitHub
+
+```bash
+git add .
+git commit -m "Prepare for deployment"
+git push origin main
+```
+
+### 2. Create Render Web Service
+
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repository
+4. Configure:
+   - **Name**: `newspulse-api` (or your choice)
+   - **Region**: Oregon (or closest to you)
+   - **Branch**: `main`
+   - **Root Directory**: `backend`
+   - **Runtime**: `Python 3`
+   - **Build Command**: 
+     ```bash
+     pip install -r requirements.txt && python -m spacy download en_core_web_sm
+     ```
+   - **Start Command**: 
+     ```bash
+     uvicorn app.main:app --host 0.0.0.0 --port $PORT
+     ```
+
+### 3. Add Environment Variables
+
+In Render dashboard, go to **Environment** tab and add:
+
+| Key | Value |
+|-----|-------|
+| `NEWS_API_KEY` | Your NewsAPI key |
+| `GEMINI_API_KEY` | Your Gemini API key |
+| `POLL_INTERVAL_MINUTES` | `30` |
+| `RETENTION_HOURS` | `48` |
+| `PYTHON_VERSION` | `3.11.0` |
+
+### 4. Deploy
+
+Click **Create Web Service** - Render will build and deploy automatically.
+
+**Your backend URL**: `https://newspulse-api.onrender.com` (or your chosen name)
+
+> ⚠️ **Note**: Free Render services spin down after 15 minutes of inactivity. First request after idle may take 30-60 seconds.
+
+---
+
+## 🎨 Frontend Deployment (Vercel)
+
+### 1. Create Environment File
+
+In `frontend/` directory, create `.env.production`:
+
+```env
+VITE_API_BASE_URL=https://your-backend-url.onrender.com
+```
+
+Replace `your-backend-url` with your actual Render URL from above.
+
+### 2. Commit Environment Config
+
+```bash
+git add frontend/.env.production
+git commit -m "Add production environment config"
+git push origin main
+```
+
+### 3. Deploy to Vercel
+
+**Option A: Via Vercel Dashboard**
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+2. Click **Add New** → **Project**
+3. Import your GitHub repository
+4. Configure:
+   - **Framework Preset**: Vite
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build` (auto-detected)
+   - **Output Directory**: `dist` (auto-detected)
+
+**Option B: Via CLI**
+```bash
+cd frontend
+npx vercel --prod
+```
+
+### 4. Add Environment Variable
+
+In Vercel project settings:
+1. Go to **Settings** → **Environment Variables**
+2. Add:
+   - **Key**: `VITE_API_BASE_URL`
+   - **Value**: `https://your-backend-url.onrender.com`
+   - **Environments**: Production, Preview
+
+### 5. Redeploy
+
+Vercel will automatically deploy. Your site will be live at:
+- `https://your-project-name.vercel.app`
+
+---
+
+## ✅ Verification Checklist
+
+### Backend Health Check
+```bash
+curl https://your-backend-url.onrender.com/health
+```
+Expected: `{"status":"ok"}`
+
+### Frontend Connection Test
+1. Visit your Vercel URL
+2. Open browser DevTools → Network tab
+3. Search for something
+4. Verify API requests go to your Render backend URL
+
+### Feature Timeline
+- ✅ **Immediate**: Latest News, Search, Related Stories
+- ⏱️ **~2 hours**: Breaking News detection
+- ⏱️ **~12-24 hours**: Trending analysis
+
+---
+
+## 🔒 Security Notes
+
+### Production CORS (Optional)
+
+For stricter security, update `backend/app/main.py`:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://your-project-name.vercel.app",
+        "http://localhost:5173",  # Local development
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Backend Issues
+
+**"Application failed to respond"**
+- Check Render logs: Dashboard → Your Service → Logs
+- Verify all environment variables are set
+- Ensure spaCy model downloaded (check build logs)
+
+**"Database locked" errors**
+- Normal on Render free tier with limited disk I/O
+- Consider upgrading to paid plan for production use
+
+### Frontend Issues
+
+**API calls failing**
+- Verify `VITE_API_BASE_URL` matches your Render URL exactly
+- Check CORS settings in backend
+- Look for errors in browser console
+
+**Environment variables not working**
+- Redeploy after adding variables: Vercel → Deployments → Redeploy
+- Verify variable name has `VITE_` prefix
+
+---
+
+## 🔄 Updates & Redeployment
+
+### Backend Updates
+```bash
+git add backend/
+git commit -m "Update backend"
+git push origin main
+```
+Render auto-deploys on push.
+
+### Frontend Updates
+```bash
+git add frontend/
+git commit -m "Update frontend"
+git push origin main
+```
+Vercel auto-deploys on push.
+
+---
+
+## 💰 Cost Breakdown
+
+| Service | Plan | Cost | Features |
+|---------|------|------|----------|
+| Render | Free | $0/month | 750 hours/month, sleeps after 15min idle |
+| Vercel | Hobby | $0/month | 100GB bandwidth, unlimited deployments |
+| NewsAPI | Developer | $0/month | 100 requests/day |
+| Gemini | Free | $0/month | 15 requests/minute |
+
+**Total**: $0/month for testing/portfolio use
+
+---
+
+## 📈 Scaling to Paid (Future)
+
+When you need 24/7 uptime and higher limits:
+
+- **Render**: Upgrade to Starter ($7/month) for no sleep + persistent disk
+- **NewsAPI**: Business plan ($449/month) for production use
+- **Gemini**: Pay-as-you-go for higher quotas
+- **Vercel**: Pro ($20/month) for more bandwidth
+
+---
+
+## 🎉 You're Done!
+
+Your app is now live:
+- **Frontend**: `https://your-project.vercel.app`
+- **Backend**: `https://newspulse-api.onrender.com`
+
+Share the Vercel link for your portfolio! 🚀
+
+---
+
+## 📚 Local Development Reference
 
 ### Start Backend
 ```powershell
 cd c:\Projects\NewsPulse\backend
-C:/Users/srira/AppData/Local/Programs/Python/Python313/python.exe -m uvicorn main:app --reload
+python -m uvicorn app.main:app --reload
 ```
-Backend will be available at: http://127.0.0.1:8000
+Backend available at: http://127.0.0.1:8000
 
 ### Start Frontend
 ```powershell
 cd c:\Projects\NewsPulse\frontend
 npm run dev
 ```
-Frontend will be available at: http://localhost:5173/
+Frontend available at: http://localhost:5173/
 
----
-
-## 📈 Trend Ranking Algorithm
-
-**Locked Requirements Implemented:**
-
-### Group A: New/Emerging Keywords (previous_count = 0)
-- Sorted by: `current_count` descending
-- These are keywords appearing for the first time in the current 12h window
-
-### Group B: Existing Keywords (previous_count > 0)
-- Sorted by: `growth_percentage` descending
-- Growth % = ((current_count - previous_count) / previous_count) × 100
-
-**Final Ranking**: Group A items ALWAYS rank above Group B items, regardless of counts or percentages.
-
-**Example Output**:
-```json
-{
-  "trending": [
-    // Group A (new/emerging)
-    {"keyword": "quantum computing", "current": 8, "previous": 0, "growth": null, "isNew": true},
-    {"keyword": "neural networks", "current": 5, "previous": 0, "growth": null, "isNew": true},
-    
-    // Group B (existing with growth)
-    {"keyword": "AI regulation", "current": 15, "previous": 10, "growth": 50.0, "isNew": false},
-    {"keyword": "climate change", "current": 12, "previous": 10, "growth": 20.0, "isNew": false}
-  ]
-}
-```
-
----
-
-## 🧪 Testing
-
-### Backend Tests
-```powershell
-cd c:\Projects\NewsPulse\backend
-pytest tests/test_trends.py -v
-```
 **Status**: ✅ 3/3 tests passing (ranking logic validated)
 
 ### Manual API Testing
