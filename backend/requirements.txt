@@ -13,3 +13,6 @@ pandas==2.3.2
 pytest==8.3.4
 pytest-asyncio==0.24.0
 sentence-transformers==3.3.1
+bertopic==0.16.4
+umap-learn==0.5.7
+hdbscan==0.8.41

@@ -3,15 +3,22 @@ API routes for entity extraction and article clustering.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from fastapi import APIRouter
 
-from app.services.db import get_all_articles
+from app.services.db import get_all_articles, get_recent_articles
 from app.services.entity_extractor import get_entity_extractor
 from app.services.article_clusterer import get_article_clusterer
+from app.services.topic_modeler import get_topic_modeler
+from app.services.breaking_news_detector import get_breaking_news_detector
 from app.core.config import settings
 
 
 router = APIRouter()
+
+# Simple caches (TTL-based)
+_topics_cache = {"data": None, "timestamp": None}
+_breaking_cache = {"data": None, "timestamp": None}
 
 
 @router.get("/entities")
@@ -173,3 +180,137 @@ async def get_article_clusters():
             })
 
     return {"clusters": formatted_clusters}
+
+
+@router.get("/topics")
+async def get_discovered_topics(lookback_hours: int = 24, min_articles: int = 15):
+    """
+    Get automatically discovered topics from recent articles using BERTopic.
+
+    Args:
+        lookback_hours: Hours to look back for articles (default 24)
+        min_articles: Minimum articles needed for topic discovery (default 15)
+
+    Returns:
+        Dictionary with discovered topics, keywords, and sample articles
+    """
+    # Check cache (30 min TTL)
+    now = datetime.now()
+    if _topics_cache["data"] is not None and _topics_cache["timestamp"] is not None:
+        cache_age = (now - _topics_cache["timestamp"]).total_seconds()
+        if cache_age < 1800:  # 30 minutes
+            return _topics_cache["data"]
+
+    # Get recent articles
+    articles = await get_recent_articles(settings.sqlite_path, hours=lookback_hours)
+
+    # Early return if not enough articles
+    if len(articles) < min_articles:
+        result = {
+            "topics": [],
+            "uncategorized_count": len(articles),
+            "total_articles": len(articles),
+            "message": f"Need at least {min_articles} articles for topic discovery (found {len(articles)})"
+        }
+        return result
+
+    # Get topic modeler
+    modeler = get_topic_modeler()
+    
+    # Get clusterer for embeddings (reuse existing infrastructure)
+    clusterer = get_article_clusterer()
+    
+    # Prepare texts and get embeddings
+    texts = []
+    for article in articles:
+        text_parts = []
+        if article.get("title"):
+            text_parts.append(article["title"])
+        if article.get("description"):
+            text_parts.append(article["description"])
+        texts.append(" ".join(text_parts) if text_parts else "")
+    
+    embeddings = clusterer.get_embeddings(texts)
+
+    # Discover topics
+    try:
+        result = modeler.discover_topics(
+            articles,
+            embeddings=embeddings,
+            nr_topics="auto",  # Let BERTopic decide optimal number
+            min_topic_size=3,
+        )
+        
+        # Cache the result
+        _topics_cache["data"] = result
+        _topics_cache["timestamp"] = now
+        
+        return result
+    except Exception as e:
+        # If topic discovery fails, return graceful error
+        return {
+            "topics": [],
+            "uncategorized_count": len(articles),
+            "total_articles": len(articles),
+            "error": f"Topic discovery failed: {str(e)}"
+        }
+
+
+@router.get("/breaking")
+async def get_breaking_news(threshold: int = 60):
+    """
+    Get breaking news detected by analyzing article velocity and novelty.
+
+    Uses multiple signals:
+    - Volume spike: Sudden increase in article count
+    - Novel entities: New people/orgs/locations appearing
+    - Rapid clustering: Many similar articles published quickly
+
+    Args:
+        threshold: Minimum score to consider breaking news (0-100, default 60)
+
+    Returns:
+        List of breaking news stories with scores and metadata
+    """
+    # Check cache (15 min TTL for breaking news)
+    now = datetime.now()
+    if _breaking_cache["data"] is not None and _breaking_cache["timestamp"] is not None:
+        cache_age = (now - _breaking_cache["timestamp"]).total_seconds()
+        if cache_age < 900:  # 15 minutes
+            cached_data = _breaking_cache["data"]
+            # Filter by threshold (may have changed)
+            filtered = [
+                story for story in cached_data
+                if story.get("score", 0) >= threshold
+            ]
+            return {"breaking": filtered}
+
+    # Get detector
+    detector = get_breaking_news_detector()
+    
+    # Get other services
+    entity_extractor = get_entity_extractor()
+    article_clusterer = get_article_clusterer()
+
+    # Detect breaking news
+    try:
+        breaking_stories = await detector.detect_breaking_news(
+            settings.sqlite_path,
+            entity_extractor,
+            article_clusterer,
+            threshold=threshold,
+        )
+
+        # Cache the result
+        _breaking_cache["data"] = breaking_stories
+        _breaking_cache["timestamp"] = now
+
+        return {"breaking": breaking_stories}
+    except Exception as e:
+        # Graceful error handling
+        return {
+            "breaking": [],
+            "error": f"Breaking news detection failed: {str(e)}"
+        }
+
+
