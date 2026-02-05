@@ -33,6 +33,9 @@ export default function App() {
     const [showingRelated, setShowingRelated] = useState({})
 
     useEffect(() => {
+        // Safety timeout - hide loading after 10 seconds even if API fails
+        const timeout = setTimeout(() => setLoading(false), 10000)
+
         // Fetch trends
         fetch(`${API_BASE}/trends`)
             .then(res => res.json())
@@ -55,11 +58,15 @@ export default function App() {
             .then(data => {
                 setFeaturedArticles(data.articles || [])
                 setLoading(false)
+                clearTimeout(timeout)
             })
             .catch(err => {
                 console.error('Featured articles error:', err)
                 setLoading(false)
+                clearTimeout(timeout)
             })
+
+        return () => clearTimeout(timeout)
     }, [])
 
     const handleSearchSubmit = useCallback((e) => {
