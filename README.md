@@ -293,9 +293,6 @@ GEMINI_API_KEY=your_gemini_api_key_here
 uvicorn app.main:app --reload
 ```
 
-✅ **Backend running at** `http://localhost:8000`  
-📚 **API docs at** `http://localhost:8000/docs`
-
 ### ⚛️ Frontend Setup
 
 ```bash
